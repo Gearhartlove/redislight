@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 /// Execute Redis commands from the command line.
 #[derive(Parser)]
@@ -47,21 +47,13 @@ pub enum Commands {
 #[command(rename_all = "UPPER")]
 pub enum SetCommands {
     /// Set the specified expire time, in seconds.
-    EX {
-        seconds: f32,
-    },
+    EX { seconds: f32 },
     /// Set the specified expire time, in milliseconds.
-    PX {
-        milliseconds: f32,
-    },
+    PX { milliseconds: u64 },
     /// Set the specified Unix time at which the key will expire, in seconds.
-    EXAT {
-        time_seconds: f32,
-    },
+    EXAT { seconds: f32 },
     /// Set the specified Unix time at which the key will expire, in milliseconds.
-    PXAT {
-        time_milliseconds: f32,
-    },
+    PXAT { milliseconds: u64 },
     /// Only set the key if it does not already exist.
     NX,
     ///  Only set the key if it already exist.
@@ -72,4 +64,3 @@ pub enum SetCommands {
     /// SET aborted if the value stored at key is not a string.
     GET,
 }
-
