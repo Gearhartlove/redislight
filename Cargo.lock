@@ -123,13 +123,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quiq_programming_exercise"
-version = "0.1.0"
-dependencies = [
- "clap",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -137,6 +130,20 @@ checksum = "bbe448f377a7d6961e30f5955f9b8d106c3f5e449d493ee1b125c1d43c2b5179"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "redislight"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "shlex",
+]
+
+[[package]]
+name = "shlex"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43b2853a4d09f215c24cc5489c992ce46052d359b5109343cbafbf26bc62f8a3"
 
 [[package]]
 name = "strsim"
