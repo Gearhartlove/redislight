@@ -17,12 +17,13 @@ fn main() -> Result<(), String> {
         print!(">> ");
         let _ = stdout().flush(); // Flushed the input buffering. Used for formatting.
         stdin().read_line(&mut line).unwrap();
+        let line = line.trim();
 
 
-        let args: Vec<String> = Vec::default();
-        let args = shlex::split(&line).ok_or("error: Invalid quoting")?;
+        let mut args = shlex::split(&line).ok_or("error: Invalid quoting")?;
+        args.insert(0, "".to_string());
         //let cli = Cli::parse_from(args);
-        let cli = Cli::parse();
+        let cli = Cli::parse_from(&args);
 
 
         match &cli.command {
@@ -31,19 +32,15 @@ fn main() -> Result<(), String> {
                     match command {
                         SetCommands::EX { seconds } => {
                             // how to keep track of expire time?
-                            command_success();
                         }
                         SetCommands::PX { milliseconds } => {
 
-                            command_success();
                         }
                         SetCommands::EXAT { time_seconds } => {
 
-                            command_success();
                         }
                         SetCommands::PXAT { time_milliseconds } => {
 
-                            command_success();
                         }
                         SetCommands::KEEPTTL => {
 
@@ -52,60 +49,56 @@ fn main() -> Result<(), String> {
                         SetCommands::NX => {
                             if !hash.contains_key(key) {
                                 hash.insert(key.clone(), value.clone() );
-                                command_success();
                             }
                         }
                         SetCommands::XX => {
                             if hash.contains_key(key) {
                                 hash.insert(key.clone(), value.clone() );
-                                command_success();
                             }
                         }
                         SetCommands::GET => {
                             if let Some(value) = hash.get(key) {
-                                println!("{}", value)
+                                found_value(value)
                             } else {
-                                println!("(nil)")
+                                found_nil()
                             }
                         }
                     }
                 }
                 hash.insert(key.clone(), value.clone());
+                command_success();
             }
             Commands::DEL { keys } => {
-                println!("{:?}", keys);
+                let mut keys_deleted = 0;
+                for key in keys {
+                    if hash.contains_key(key) {
+                        hash.remove(key);
+                        keys_deleted += 1;
+                    }
+                }
+                println!("(ingeger) {}", keys_deleted);
             }
             Commands::GET { key } => {
-                println!("{:?}", key);
+                if let Some(value) = hash.get(key) {
+                    found_value(value)
+                } else {
+                    found_nil()
+                }
             }
             _ => {}
         }
     }
 }
 
-// struct Line(String);
+fn found_value(value: &String) {
+    println!("{}", value);
+}
 
-// impl Into<OsString> for Line {
-//     fn into(self) -> OsString {
-//         OsString::from(self.0)
-//     }
-// }
+fn command_success() {
+    println!("OK");
+}
 
-// impl IntoIterator for Line {
-//     type Item = OsString;
-//     type IntoIter = std::vec::IntoIter<Self::Item>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         let s = String::from();
-//         let sl = "";
-//
-//         let os = OsString::from(s);
-//
-//         self.0.into_iter()
-//     }
-// }
-
- fn command_success() {
-     println!("OK");
- }
+fn found_nil() {
+   println!("(nil)")
+}
 
