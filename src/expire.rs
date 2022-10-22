@@ -19,7 +19,6 @@ impl Expire {
 pub struct ExpireBuilder {
     key: Option<String>,
     time: Option<Duration>,
-    birth: Option<Instant>,
 }
 
 impl ExpireBuilder {
@@ -64,7 +63,6 @@ pub fn kill_all_expired(expiring: &mut Vec<Expire>, hash: &mut HashMap<String, S
 
     // Remove dead Expires from Expiring List
     for i in killing {
-        println!("{:?}", expiring.get(i));
         expiring.remove(i);
     }
 }

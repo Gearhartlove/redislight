@@ -9,12 +9,12 @@ use clap::{Args, Parser, Subcommand};
 pub struct Cli {
     /// Commands to be executed.
     #[command(subcommand)]
-    pub command: Commands,
+    pub primary_commands: PrimaryCommands,
 }
 
 #[derive(Subcommand)]
 #[command(rename_all = "UPPER")]
-pub enum Commands {
+pub enum PrimaryCommands{
     /// Set 'key' to hold the string 'value'.
     SET {
         /// Determines where in the table the data will be stored.
@@ -25,7 +25,7 @@ pub enum Commands {
         value: String,
         /// Request information about a given key.
         #[command(subcommand)]
-        command: Option<SetCommands>,
+        command: Option<SetSubCommands>,
     },
     /// Removes the specified keys. A key is ignored if it does not exist.
     DEL {
@@ -45,7 +45,7 @@ pub enum Commands {
 #[allow(non_camel_case_types)]
 #[derive(Subcommand, Clone, Debug)]
 #[command(rename_all = "UPPER")]
-pub enum SetCommands {
+pub enum SetSubCommands {
     /// Set the specified expire time, in seconds.
     EX { seconds: f32 },
     /// Set the specified expire time, in milliseconds.
@@ -56,7 +56,7 @@ pub enum SetCommands {
     PXAT { milliseconds: u64 },
     /// Only set the key if it does not already exist.
     NX,
-    ///  Only set the key if it already exist.
+    /// Only set the key if it already exist.
     XX,
     /// Retain the time to live associated with the key.
     KEEPTTL,
