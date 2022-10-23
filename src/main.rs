@@ -36,7 +36,7 @@ fn read_line() -> String {
 }
 
 /// Try to parse the user's input from the command line.
-fn try_parse(line: String) -> Result<Cli, String> {
+fn try_parse(line: String) -> Result<Cli, ()> {
     // Split the user's commands and arguments
     let args = shlex::split(&line.as_str()).ok_or("error: Invalid quoting");
     match args {
@@ -46,23 +46,23 @@ fn try_parse(line: String) -> Result<Cli, String> {
             let cli = Cli::try_parse_from(&split);
             match cli {
                 Ok(cli) => return Ok(cli),
-                Err(_) => return Err("parsing command error.".to_string()),
+                Err(e) => {eprintln!("{}", e); return Err(())},
             }
         }
         Err(_) => {
-            return Err("splitting command error.".to_string());
+            return Err(());
         }
     };
 }
 
 /// Interpret the user's parced command statement with optional args and subcommands.
 fn evaluate(
-    parsed: Result<Cli, String>,
+    parsed: Result<Cli, ()>,
     mut db: &mut HashMap<String, Value>,
     mut expiring: &mut Vec<Expire>,
 ) {
     match parsed {
-        Err(_) => {
+        Err(e) => {
             eprintln!("(invalid command)");
             return;
         }
@@ -276,12 +276,12 @@ fn found_value(value: &Value) {
     match value {
         Value::Str(s) => {
             println!("{}", s)
-        },
+        }
         Value::LL(ll) => {
             for (i, s) in ll.iter().enumerate() {
                 println!("{}) {}", i + 1, s)
             }
-        },
+        }
     }
 }
 
