@@ -63,7 +63,7 @@ fn evaluate(
 ) {
     match parsed {
         Err(_) => {
-            eprintln!("(Invalid Command)");
+            eprintln!("(invalid command)");
             return;
         }
 
@@ -208,6 +208,8 @@ fn evaluate(
                             for element in add_elements.iter() {
                                 ll.push_front(element.clone());
                             }
+
+                            println!("(integer) {}", ll.len())
                         }
                         _ => {}
                     }
@@ -253,7 +255,7 @@ fn evaluate(
                         match value {
                             Value::LL(ll) => {
                                 // From the end to the start, if there is a value, return that value.
-                                for i in *start..*stop {
+                                for i in *start..*stop + 2 {
                                     if let Some(value) = ll.iter().nth(i) {
                                         println!("{}) {}", i + 1, value);
                                     }
@@ -271,7 +273,16 @@ fn evaluate(
 // Utility functions
 
 fn found_value(value: &Value) {
-    println!("{:?}", value);
+    match value {
+        Value::Str(s) => {
+            println!("{}", s)
+        },
+        Value::LL(ll) => {
+            for (i, s) in ll.iter().enumerate() {
+                println!("{}) {}", i + 1, s)
+            }
+        },
+    }
 }
 
 fn command_success() {

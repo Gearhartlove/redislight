@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 /// Execute Redis commands from the command line.
 #[derive(Parser)]
