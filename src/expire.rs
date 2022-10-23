@@ -1,4 +1,9 @@
-use std::{time::{Duration, Instant}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
+
+use crate::value::Value;
 
 /// Associates a key with a given expiration timer.
 #[derive(Debug)]
@@ -49,7 +54,7 @@ impl ExpireBuilder {
 
 /// Calculates the difference of ((birth + time) - current). Removes
 /// key from the data base if result is negative.
-pub fn kill_all_expired(expiring: &mut Vec<Expire>, hash: &mut HashMap<String, String>) {
+pub fn kill_all_expired(expiring: &mut Vec<Expire>, hash: &mut HashMap<String, Value>) {
     let mut killing: Vec<usize> = Vec::default();
 
     // Remove dead pairs from Database

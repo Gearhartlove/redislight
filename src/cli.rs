@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand};
 
 /// Execute Redis commands from the command line.
 #[derive(Parser)]
-#[command(name = "RedisLight")]
+#[command(name = "redislight")]
 #[command(author = "Gearhartlove")]
 #[command(version = "1.0")]
 #[command(about = "Mimics basic Redis commands in the console.", long_about = None)]
@@ -14,7 +14,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 #[command(rename_all = "UPPER")]
-pub enum PrimaryCommands{
+pub enum PrimaryCommands {
     /// Set 'key' to hold the string 'value'.
     SET {
         /// Determines where in the table the data will be stored.
@@ -39,6 +39,40 @@ pub enum PrimaryCommands{
         /// Key to get.
         #[arg(value_name = "KEY")]
         key: String,
+    },
+    /// Insert all the specified values at the head of the list stored at key. If key does not exist,
+    /// it is created as empty list before performing the push operations. When key holds a value that
+    /// is not a list, an error is returned.
+    LPUSH {
+        /// Key from which specified elements are pushed.
+        #[arg(value_name = "KEY")]
+        key: String,
+        /// List of elements to add to list.
+        #[arg(value_name = "ELEMENT")]
+        add_elements: Vec<String>,
+    },
+    /// Removes and returns the first elements of the list stored at key.
+    LPOP {
+        /// Key from which specified elements are popped.
+        #[arg(value_name = "KEY")]
+        key: String,
+        /// List of elements to pop from to list.
+        #[arg(value_name = "COUNT")]
+        count: Option<usize>,
+    },
+    /// Returns the specified elements of the list stored at key. The offsets start and stop are zero-based
+    /// indexes, with 0 being the first element of the list (the head of the list), 1 being the next element
+    /// and so on.
+    LRANGE {
+        /// Key from which specified elements are returned.
+        #[arg(value_name = "KEY")]
+        key: String,
+        /// Start offset for zero-based indexes.
+        #[arg(value_name = "START")]
+        start: usize,
+        /// End offset for zero-based indexes.
+        #[arg(value_name = "STOP")]
+        stop: usize,
     },
 }
 

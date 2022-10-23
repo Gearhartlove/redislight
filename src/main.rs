@@ -2,29 +2,29 @@ extern crate core;
 
 mod cli;
 mod expire;
+mod value;
 
 use crate::cli::{Cli, PrimaryCommands, SetSubCommands};
-use crate::expire::{kill_single_expired, kill_all_expired};
+use crate::expire::{kill_all_expired, kill_single_expired};
 use clap::Parser;
 use expire::Expire;
 use std::collections::{HashMap, LinkedList};
 use std::io::{stdin, stdout, Write};
+use value::Value;
 
 fn main() -> Result<(), String> {
-    let mut db: HashMap<String, String> = HashMap::default();
+    let mut db: HashMap<String, Value> = HashMap::default();
     let mut expiring: Vec<Expire> = Vec::default();
-    let mut lists: Vec<LinkedList<String>> = Vec::default();
 
     // redislight repl: read --> parse --> evaluate --> print -> repeat
     loop {
         let line = read_line();
         let parsed = try_parse(line);
-        evaluate(parsed, &mut db, &mut expiring, &mut lists);
+        evaluate(parsed, &mut db, &mut expiring);
     }
 }
 
-
-/// Prompt and take user input from the command line. 
+/// Prompt and take user input from the command line.
 fn read_line() -> String {
     let mut line = String::new();
 
@@ -45,19 +45,22 @@ fn try_parse(line: String) -> Result<Cli, String> {
             // Parse the user's split commands and arguments
             let cli = Cli::try_parse_from(&split);
             match cli {
-                Ok(cli) => {
-                    return Ok(cli)
-                },
-                Err(_) => return Err("parsing command error.".to_string())
+                Ok(cli) => return Ok(cli),
+                Err(_) => return Err("parsing command error.".to_string()),
             }
-        },
+        }
         Err(_) => {
             return Err("splitting command error.".to_string());
-        },
+        }
     };
 }
 
-fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, mut expiring: &mut Vec<Expire>, mut lists: &mut Vec<LinkedList<String>>) {
+/// Interpret the user's parced command statement with optional args and subcommands.
+fn evaluate(
+    parsed: Result<Cli, String>,
+    mut db: &mut HashMap<String, Value>,
+    mut expiring: &mut Vec<Expire>,
+) {
     match parsed {
         Err(_) => {
             eprintln!("(Invalid Command)");
@@ -68,7 +71,8 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
             // Look for expired pairs in the data base and remove them.
             kill_all_expired(&mut expiring, &mut db);
 
-            match &cli.primary_commands{
+            match &cli.primary_commands {
+                // Set key to hold the string value.
                 PrimaryCommands::SET {
                     key,
                     value,
@@ -76,6 +80,8 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                 } => {
                     // remember if new key/value pair is expiring
                     let mut is_expiring = false;
+                    // create owned verison of value
+                    let value = Value::Str(value.clone());
 
                     // consider possible SET subcommands
                     if let Some(command) = command {
@@ -83,8 +89,7 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                             // Set the specified expire time, in seconds.
                             SetSubCommands::EX { seconds } => {
                                 is_expiring = true;
-                                let expire =
-                                    Expire::builder().key(key).seconds(seconds).finish();
+                                let expire = Expire::builder().key(key).seconds(seconds).finish();
 
                                 expiring.push(expire);
                             }
@@ -103,8 +108,7 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                             // Set the specified Unix time at which the key will expire, in seconds.
                             SetSubCommands::EXAT { seconds } => {
                                 is_expiring = true;
-                                let expire =
-                                    Expire::builder().key(key).seconds(seconds).finish();
+                                let expire = Expire::builder().key(key).seconds(seconds).finish();
 
                                 expiring.push(expire);
                             }
@@ -121,7 +125,7 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
 
                             // Keep the same key and expire, but change the value
                             SetSubCommands::KEEPTTL => {
-                                db.insert(key.clone(), value.clone());
+                                db.insert(key.clone(), value);
                                 command_success();
                                 return;
                             }
@@ -129,14 +133,20 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                             // Only set the key if it does not already exist.
                             SetSubCommands::NX => {
                                 if !db.contains_key(key) {
-                                    db.insert(key.clone(), value.clone());
+                                    // Remove existing expire if present
+                                    kill_single_expired(&mut expiring, &key);
+                                    db.insert(key.clone(), value);
+                                    return;
                                 }
                             }
 
                             // Only set the key if it already exist.
                             SetSubCommands::XX => {
                                 if db.contains_key(key) {
-                                    db.insert(key.clone(), value.clone());
+                                    // Remove existing expire if present
+                                    kill_single_expired(&mut expiring, &key);
+                                    db.insert(key.clone(), value);
+                                    return;
                                 }
                             }
 
@@ -158,9 +168,10 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                         kill_single_expired(&mut expiring, &key);
                     }
 
-                    db.insert(key.clone(), value.clone());
+                    db.insert(key.clone(), value);
                     command_success();
                 }
+                // Removes the specified keys. A key is ignored if it does not exist.
                 PrimaryCommands::DEL { keys } => {
                     let mut keys_deleted = 0;
                     for key in keys {
@@ -171,6 +182,7 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                     }
                     println!("(integer) {}", keys_deleted);
                 }
+                // Get the value of key.
                 PrimaryCommands::GET { key } => {
                     if let Some(value) = db.get(key) {
                         found_value(value)
@@ -178,14 +190,88 @@ fn evaluate(parsed: Result<Cli, String>, mut db: &mut HashMap<String, String>, m
                         found_nil()
                     }
                 }
-                _ => {}
+                // Insert all the specified values at the head of the list stored at key.
+                PrimaryCommands::LPUSH { key, add_elements } => {
+                    // Get the linked list to add the elements too. If it doesn't exit, instantiate it.
+                    let value = match db.get_mut(key) {
+                        Some(ll) => ll,
+                        None => {
+                            let ll: LinkedList<String> = LinkedList::default();
+                            let value = Value::LL(ll);
+                            db.insert(key.clone(), value);
+                            db.get_mut(key).unwrap()
+                        }
+                    };
+
+                    match value {
+                        Value::LL(ll) => {
+                            for element in add_elements.iter() {
+                                ll.push_front(element.clone());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                // Removes and returns the first elements of the list stored at key.
+                PrimaryCommands::LPOP { key, count } => {
+                    // Get the linked list from the database if it exists.
+                    if let Some(value) = db.get_mut(key) {
+                        match value {
+                            // Get the linked list.
+                            Value::LL(ll) => {
+                                // Create popped vector for future popped values to be added to.
+                                let mut popped: Vec<Option<String>> = Vec::default();
+                                match count {
+                                    Some(count) => {
+                                        for _ in 0..*count {
+                                            let pop = ll.pop_front();
+                                            popped.push(pop);
+                                        }
+                                    }
+                                    // Default behavior: pop one from the start if no count is specified.
+                                    None => {
+                                        let pop = ll.pop_front();
+                                        popped.push(pop);
+                                    }
+                                }
+
+                                // If a value was popped, print that value.
+                                for (i, pop) in popped.iter().enumerate() {
+                                    if let Some(value) = pop {
+                                        println!("{}) {}", i + 1, value)
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                // Returns the specified elements of the list stored at key.
+                PrimaryCommands::LRANGE { key, start, stop } => {
+                    // Get the linked list from the database if it exists.
+                    if let Some(value) = db.get(key) {
+                        match value {
+                            Value::LL(ll) => {
+                                // From the end to the start, if there is a value, return that value.
+                                for i in *start..*stop {
+                                    if let Some(value) = ll.iter().nth(i) {
+                                        println!("{}) {}", i + 1, value);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-fn found_value(value: &String) {
-    println!("{}", value);
+// Utility functions
+
+fn found_value(value: &Value) {
+    println!("{:?}", value);
 }
 
 fn command_success() {
