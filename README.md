@@ -4,7 +4,7 @@ A small redis repl
 This project features five commands, key/value expiration, an organized CLI structure,
 a detailed parser, and error messages. 
 
-The commands are : SET |  DEL |  LPUSH  | LPOP |  LRANGE
+The commands are : SET |  DEL |  GET  |  LPUSH  | LPOP |  LRANGE
 
 Each command has different required/optional arguments and sometimes subcommands. 
 Any command's arguments and subcommands can be queried  with the `[COMMAND] -h`. 
